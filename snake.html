@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Colorful Snake Game - Play offline with fruits, enemies, levels & mobile support." />
+  <meta name="keywords" content="snake game, html5, JavaScript game, mobile snake, colorful snake game, offline game" />
+  <meta name="author" content="Your Name" />
+  <title>Colorful Snake Game</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(to right, #fbc2eb, #a6c1ee);
+      margin: 0;
+      padding: 0;
+      text-align: center;
+      color: #fff;
+    }
+
+    h1 {
+      margin-top: 20px;
+      text-shadow: 1px 1px 3px #000;
+    }
+
+    .controls {
+      margin: 20px;
+    }
+
+    select, button {
+      padding: 10px;
+      margin: 10px;
+      font-size: 16px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    button {
+      background-color: #28a745;
+      color: white;
+      transition: all 0.2s ease;
+    }
+
+    button:hover {
+      background-color: #218838;
+      transform: scale(1.05);
+    }
+
+    .top-score-btn {
+      background-color: #007bff;
+      color: white;
+      transition: all 0.2s ease;
+    }
+
+    .top-score-btn:hover {
+      background-color: #0056b3;
+      transform: scale(1.05);
+    }
+
+    canvas {
+      background-color: #222;
+      display: block;
+      margin: 0 auto;
+      border: 3px solid white;
+      border-radius: 10px;
+    }
+
+    #score, #top-score {
+      font-size: 18px;
+      margin: 10px;
+      font-weight: bold;
+    }
+
+    @media (max-width: 600px) {
+      canvas {
+        width: 90vw;
+        height: 90vw;
+      }
+    }
+
+    .adsense {
+      margin: 20px auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>Colorful Snake Game</h1>
+
+  <div class="controls">
+    <select id="level">
+      <option value="150">Easy</option>
+      <option value="100">Medium</option>
+      <option value="60">Hard</option>
+    </select>
+    <button onclick="startGame()">Start Game</button>
+    <button class="top-score-btn" onclick="alert('Top Score: ' + topScore)">Top Score</button>
+  </div>
+
+  <div id="score">Score: 0</div>
+  <div id="top-score">Top Score: 0</div>
+
+  <canvas id="gameCanvas" width="400" height="400"></canvas>
+
+  <section class="adsense">
+    <!-- Replace with your own AdSense code -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+    <ins class="adsbygoogle"
+         style="display:block"
+         data-ad-client="ca-pub-xxxxxxxxxxxxxxxx"
+         data-ad-slot="xxxxxxxxxx"
+         data-ad-format="auto"></ins>
+    <script>
+      (adsbygoogle = window.adsbygoogle || []).push({});
+    </script>
+  </section>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const gridSize = 20;
+    const tileCount = canvas.width / gridSize;
+
+    let snake = [{ x: 10, y: 10 }];
+    let direction = 'RIGHT';
+    let food = {};
+    let fruits = [
+      { color: 'red', shape: '🍎', points: 6 },
+      { color: 'yellow', shape: '🍌', points: 15 },
+      { color: 'lime', shape: '🍏', points: 18 },
+      { color: 'orange', shape: '🍊', points: 25 },
+      { color: 'purple', shape: '🍇', points: 35 },
+      { color: 'pink', shape: '🍒', points: 32 },
+      { color: 'green', shape: '🥑', points: 38 },
+      { color: 'blue', shape: '🫐', points: 45 },
+      { color: 'brown', shape: '🍫', points: 48 },
+      { color: 'black', shape: '🍉', points: 50 },
+      { color: 'white', shape: '🍓', points: 55 },
+      { color: 'lightblue', shape: '🍍', points: 58 },
+      { color: 'gold', shape: '🍯', points: 65 },
+      { color: 'silver', shape: '🍬', points: 68 },
+      { color: 'coral', shape: '🍑', points: 70 }
+    ];
+    let enemy = { body: [{ x: 5, y: 5 }], direction: 'RIGHT', color: 'purple' };
+    let score = 0;
+    let topScore = 0;  // Track the top score
+    let gameLoop;
+    let speed = 100;
+
+    function getRandomPosition() {
+      return {
+        x: Math.floor(Math.random() * tileCount),
+        y: Math.floor(Math.random() * tileCount)
+      };
+    }
+
+    function spawnFood() {
+      const type = fruits[Math.floor(Math.random() * fruits.length)];
+      food = { ...getRandomPosition(), ...type };
+    }
+
+    function moveEnemy() {
+      const head = { ...enemy.body[0] };
+
+      if (enemy.direction === 'UP') head.y -= 1;
+      else if (enemy.direction === 'DOWN') head.y += 1;
+      else if (enemy.direction === 'LEFT') head.x -= 1;
+      else if (enemy.direction === 'RIGHT') head.x += 1;
+
+      // Wrap around the canvas edges for enemies
+      if (head.x < 0) head.x = tileCount - 1;
+      else if (head.x >= tileCount) head.x = 0;
+      if (head.y < 0) head.y = tileCount - 1;
+      else if (head.y >= tileCount) head.y = 0;
+
+      enemy.body.unshift(head);
+
+      if (Math.random() < 0.1) {
+        // Randomly change enemy direction occasionally
+        const directions = ['UP', 'DOWN', 'LEFT', 'RIGHT'];
+        enemy.direction = directions[Math.floor(Math.random() * 4)];
+      }
+
+      // Remove last part of enemy if it hasn't eaten
+      enemy.body.pop();
+    }
+
+    function drawBox(x, y, color, shape) {
+      if (shape) {
+        ctx.fillText(shape, x * gridSize + 4, y * gridSize + 16);
+      } else {
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(x * gridSize + gridSize / 2, y * gridSize + gridSize / 2, gridSize / 2 - 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    function drawGame() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.font = '18px Arial';
+
+      // Draw the player's snake
+      snake.forEach(seg => drawBox(seg.x, seg.y, '#4CAF50')); // Adjust color as needed
+
+      // Draw the food
+      drawBox(food.x, food.y, food.color, food.shape);
+
+      // Draw enemy snake with updated color
+      enemy.body.forEach(seg => drawBox(seg.x, seg.y, enemy.color));
+
+      document.getElementById('score').innerText = 'Score: ' + score;
+      document.getElementById('top-score').innerText = 'Top Score: ' + topScore;
+    }
+
+    function moveSnake() {
+      const head = { ...snake[0] };
+      if (direction === 'UP') head.y -= 1;
+      else if (direction === 'DOWN') head.y += 1;
+      else if (direction === 'LEFT') head.x -= 1;
+      else if (direction === 'RIGHT') head.x += 1;
+
+      // Wrap around the canvas edges for player
+      if (head.x < 0) head.x = tileCount - 1;
+      else if (head.x >= tileCount) head.x = 0;
+      if (head.y < 0) head.y = tileCount - 1;
+      else if (head.y >= tileCount) head.y = 0;
+
+      // Self collision
+      if (snake.some((seg, i) => i !== 0 && seg.x === head.x && seg.y === head.y)) {
+        return gameOver();
+      }
+
+      snake.unshift(head);
+
+      if (head.x === food.x && head.y === food.y) {
+        score += food.points;
+        spawnFood();
+      } else {
+        snake.pop();
+      }
+
+      // Trap enemy logic
+      if (isEnemyTrapped()) {
+        score += 20; // Extra points for trapping the enemy
+        enemy.color = 'red'; // Change enemy color to red
+      }
+    }
+
+    function isEnemyTrapped() {
+      const head = snake[0];
+      const surroundingPositions = [
+        { x: head.x - 1, y: head.y },
+        { x: head.x + 1, y: head.y },
+        { x: head.x, y: head.y - 1 },
+        { x: head.x, y: head.y + 1 }
+      ];
+
+      return surroundingPositions.some(pos => {
+        return enemy.body.some(segment => segment.x === pos.x && segment.y === pos.y);
+      });
+    }
+
+    function updateGame() {
+      moveSnake();
+      moveEnemy();
+      drawGame();
+    }
+
+    function startGame() {
+      speed = parseInt(document.getElementById('level').value);
+      snake = [{ x: 10, y: 10 }];
+      direction = 'RIGHT';
+      score = 0;
+      spawnFood();
+      enemy.body = [{ x: 5, y: 5 }];
+      enemy.direction = 'RIGHT';
+      enemy.color = 'purple';  // Reset enemy color
+      clearInterval(gameLoop);
+      gameLoop = setInterval(updateGame, speed);
+    }
+
+    function gameOver() {
+      clearInterval(gameLoop);
+      if (score > topScore) {
+        topScore = score;
+      }
+      alert('Game Over! Final Score: ' + score);
+    }
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'ArrowUp' && direction !== 'DOWN') direction = 'UP';
+      if (e.key === 'ArrowDown' && direction !== 'UP') direction = 'DOWN';
+      if (e.key === 'ArrowLeft' && direction !== 'RIGHT') direction = 'LEFT';
+      if (e.key === 'ArrowRight' && direction !== 'LEFT') direction = 'RIGHT';
+    });
+
+    // Touch support (simple swipe detection)
+    let touchStartX = 0;
+    let touchStartY = 0;
+
+    canvas.addEventListener('touchstart', e => {
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+    });
+
+    canvas.addEventListener('touchend', e => {
+      const dx = e.changedTouches[0].clientX - touchStartX;
+      const dy = e.changedTouches[0].clientY - touchStartY;
+
+      if (Math.abs(dx) > Math.abs(dy)) {
+        if (dx > 0 && direction !== 'LEFT') direction = 'RIGHT';
+        else if (dx < 0 && direction !== 'RIGHT') direction = 'LEFT';
+      } else {
+        if (dy > 0 && direction !== 'UP') direction = 'DOWN';
+        else if (dy < 0 && direction !== 'DOWN') direction = 'UP';
+      }
+    });
+  </script>
+</body>
+</html>
